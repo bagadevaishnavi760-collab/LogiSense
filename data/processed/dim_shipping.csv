@@ -1,0 +1,121 @@
+shipping_key,shipping_method,payment_method,order_priority
+1,International,Digital Wallet,Normal
+2,Standard,Debit Card,Normal
+3,International,Debit Card,Low
+4,Economy,Credit Card,Normal
+5,Standard,Bank Transfer,Normal
+6,Standard,Cash on Delivery,Normal
+7,International,Credit Card,High
+8,Economy,Debit Card,Normal
+9,International,PayPal,Urgent
+10,Express,Debit Card,Normal
+11,International,PayPal,Normal
+12,International,Digital Wallet,High
+13,Express,Credit Card,High
+14,International,PayPal,Low
+15,International,Debit Card,Normal
+16,International,Debit Card,High
+17,Standard,Debit Card,High
+18,Express,PayPal,Low
+19,Express,Bank Transfer,High
+20,Standard,Credit Card,Urgent
+21,Standard,PayPal,Normal
+22,International,Cash on Delivery,High
+23,International,Bank Transfer,Normal
+24,Standard,Debit Card,Urgent
+25,Economy,Bank Transfer,High
+26,International,Credit Card,Normal
+27,Express,Debit Card,High
+28,Standard,Bank Transfer,High
+29,International,Credit Card,Low
+30,Standard,PayPal,High
+31,International,Bank Transfer,High
+32,International,Credit Card,Urgent
+33,Express,Credit Card,Normal
+34,Standard,Digital Wallet,Normal
+35,Economy,Bank Transfer,Normal
+36,Standard,Digital Wallet,Urgent
+37,Standard,Digital Wallet,Low
+38,Standard,Credit Card,Normal
+39,Standard,Credit Card,High
+40,Express,Debit Card,Low
+41,Express,Credit Card,Urgent
+42,Standard,Credit Card,Low
+43,Economy,Digital Wallet,Urgent
+44,Express,PayPal,High
+45,Standard,Debit Card,Low
+46,Economy,PayPal,High
+47,Economy,Credit Card,High
+48,International,Cash on Delivery,Normal
+49,Economy,PayPal,Normal
+50,Express,PayPal,Normal
+51,Standard,PayPal,Low
+52,Economy,Debit Card,High
+53,Express,Bank Transfer,Normal
+54,Express,Cash on Delivery,Normal
+55,Express,Cash on Delivery,Low
+56,Standard,Cash on Delivery,High
+57,Same Day,Digital Wallet,Urgent
+58,Standard,Digital Wallet,High
+59,International,Debit Card,Urgent
+60,Express,Credit Card,Low
+61,Standard,Cash on Delivery,Urgent
+62,Same Day,Credit Card,High
+63,Economy,Debit Card,Urgent
+64,Economy,Bank Transfer,Low
+65,Economy,Digital Wallet,High
+66,Same Day,PayPal,Low
+67,Economy,PayPal,Low
+68,International,Bank Transfer,Low
+69,International,Digital Wallet,Urgent
+70,Same Day,Credit Card,Low
+71,Standard,Bank Transfer,Urgent
+72,Same Day,PayPal,Normal
+73,Economy,Cash on Delivery,High
+74,Express,Digital Wallet,Normal
+75,Same Day,Cash on Delivery,Urgent
+76,International,PayPal,High
+77,Same Day,Debit Card,High
+78,Same Day,Bank Transfer,Urgent
+79,International,Digital Wallet,Low
+80,Express,Bank Transfer,Urgent
+81,Express,Digital Wallet,High
+82,Same Day,Digital Wallet,High
+83,Economy,Credit Card,Low
+84,Economy,Debit Card,Low
+85,Express,Debit Card,Urgent
+86,Economy,Cash on Delivery,Low
+87,International,Cash on Delivery,Low
+88,Same Day,Credit Card,Normal
+89,Economy,Bank Transfer,Urgent
+90,Same Day,Debit Card,Normal
+91,Express,PayPal,Urgent
+92,Express,Digital Wallet,Low
+93,Express,Cash on Delivery,High
+94,Economy,Cash on Delivery,Normal
+95,International,Bank Transfer,Urgent
+96,Standard,Cash on Delivery,Low
+97,Economy,Credit Card,Urgent
+98,Same Day,Credit Card,Urgent
+99,Economy,Digital Wallet,Low
+100,Express,Bank Transfer,Low
+101,Standard,Bank Transfer,Low
+102,Same Day,Bank Transfer,High
+103,Economy,Digital Wallet,Normal
+104,Same Day,Digital Wallet,Normal
+105,Same Day,Bank Transfer,Normal
+106,Same Day,Bank Transfer,Low
+107,Same Day,Debit Card,Urgent
+108,Standard,PayPal,Urgent
+109,Same Day,PayPal,High
+110,International,Cash on Delivery,Urgent
+111,Same Day,Cash on Delivery,Normal
+112,Economy,PayPal,Urgent
+113,Express,Cash on Delivery,Urgent
+114,Same Day,PayPal,Urgent
+115,Same Day,Debit Card,Low
+116,Express,Digital Wallet,Urgent
+117,Same Day,Cash on Delivery,High
+118,Same Day,Digital Wallet,Low
+119,Economy,Cash on Delivery,Urgent
+120,Same Day,Cash on Delivery,Low

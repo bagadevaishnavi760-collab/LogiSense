@@ -1,0 +1,63 @@
+{
+  "random_state": 42,
+  "classification_target": "late_delivery_target",
+  "classification_source_column": "late_delivery",
+  "regression_target": "actual_delivery_days_target",
+  "regression_source_column": "actual_delivery_days",
+  "features": [
+    "customer_segment",
+    "customer_city",
+    "customer_country",
+    "warehouse_id",
+    "warehouse_city",
+    "product_category",
+    "product_weight_kg",
+    "order_value_usd",
+    "shipping_method",
+    "carrier",
+    "distance_km",
+    "promised_delivery_days",
+    "shipping_cost_usd",
+    "package_size",
+    "payment_method",
+    "order_year",
+    "order_month",
+    "order_day",
+    "order_dayofweek",
+    "order_is_weekend"
+  ],
+  "leakage_columns": [
+    "actual_delivery_days",
+    "actual_delivery_days_target",
+    "delivery_attempts",
+    "delivery_delay_days",
+    "delivery_status",
+    "late_delivery",
+    "late_delivery_target",
+    "tracking_status"
+  ],
+  "classification_model": "Tuned Random Forest",
+  "classification_metrics": {
+    "Accuracy": 0.6586,
+    "Precision": 0.7062872023809523,
+    "Recall": 0.6741832386363636,
+    "F1": 0.6898619186046512,
+    "ROC_AUC": 0.719202712977127
+  },
+  "classification_threshold": 0.35,
+  "random_search_best_cv_f1": 0.6935669763388242,
+  "random_search_best_params": {
+    "model__n_estimators": 100,
+    "model__min_samples_split": 2,
+    "model__min_samples_leaf": 2,
+    "model__max_features": "sqrt",
+    "model__max_depth": null
+  },
+  "regression_model": "HistGradient Boosting",
+  "regression_holdout_metrics": {
+    "Model": "HistGradient Boosting",
+    "MAE": 1.1714367343940282,
+    "RMSE": 1.6310387059142812,
+    "R2": 0.8760027950170046
+  }
+}

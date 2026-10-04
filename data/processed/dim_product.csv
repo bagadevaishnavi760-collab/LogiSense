@@ -1,0 +1,46 @@
+product_key,product_category,package_size
+1,Home & Kitchen,Large
+2,Beauty,Small
+3,Grocery,Large
+4,Toys,Medium
+5,Electronics,Large
+6,Home & Kitchen,Small
+7,Health & Personal Care,Medium
+8,Automotive,Small
+9,Home & Kitchen,Oversized
+10,Sports & Fitness,Medium
+11,Office Supplies,Medium
+12,Beauty,Medium
+13,Books,Small
+14,Health & Personal Care,Small
+15,Automotive,Oversized
+16,Automotive,Medium
+17,Books,Large
+18,Electronics,Medium
+19,Books,Medium
+20,Fashion,Medium
+21,Sports & Fitness,Large
+22,Office Supplies,Small
+23,Fashion,Small
+24,Electronics,Small
+25,Sports & Fitness,Oversized
+26,Office Supplies,Large
+27,Grocery,Medium
+28,Pet Supplies,Large
+29,Grocery,Small
+30,Fashion,Large
+31,Sports & Fitness,Small
+32,Pet Supplies,Small
+33,Automotive,Large
+34,Toys,Small
+35,Pet Supplies,Medium
+36,Electronics,Oversized
+37,Toys,Large
+38,Grocery,Oversized
+39,Home & Kitchen,Medium
+40,Beauty,Large
+41,Pet Supplies,Oversized
+42,Office Supplies,Oversized
+43,Health & Personal Care,Large
+44,Toys,Oversized
+45,Fashion,Oversized
