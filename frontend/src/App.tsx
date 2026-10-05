@@ -1,52 +1,151 @@
-import "./App.css"
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AppLayout } from './components/layout/AppLayout'
-import { Overview } from './pages/Overview'
+import { AppLayout, NotFoundPage } from './layouts/AppLayout'
+import { SkeletonChart, SkeletonStatGrid, SkeletonTable } from './components/ui/skeleton'
+import { ErrorState } from './components/ui/states'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
-function Placeholder({ title }: { title: string }) {
+/* Overview is the landing route, so it ships in the main bundle. */
+import DashboardPage from './pages/Dashboard'
+
+const OLAPPage = lazy(() => import('./pages/OLAPExplorer'))
+const RiskPage = lazy(() => import('./pages/RiskPrediction'))
+const CarrierPage = lazy(() => import('./pages/CarrierAnalytics'))
+const DeliveryPage = lazy(() => import('./pages/DeliveryAnalytics'))
+const OrdersPage = lazy(() => import('./pages/OrdersExplorer'))
+const QualityPage = lazy(() => import('./pages/DataQuality'))
+const MonitoringPage = lazy(() => import('./pages/ModelMonitoring'))
+const AdminPage = lazy(() => import('./pages/Admin'))
+const SettingsPage = lazy(() => import('./pages/Settings'))
+
+function RouteSkeleton() {
   return (
-    <div className="page">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">LOGISENSE</p>
-          <h1>{title}</h1>
-          <p className="page-subtitle">This module is ready for implementation.</p>
-        </div>
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <div className="h-6 w-72 animate-pulse rounded bg-surface-sunken" />
+        <div className="h-3.5 w-[520px] max-w-full animate-pulse rounded bg-surface-sunken" />
       </div>
-
-      <div className="placeholder-card">
-        <div className="placeholder-icon">◈</div>
-        <h2>{title}</h2>
-        <p>
-          The application shell is ready. This module will be connected to the
-          LogiSense analytics backend in the next phases.
-        </p>
+      <SkeletonStatGrid count={4} />
+      <div className="grid gap-4 xl:grid-cols-3">
+        <SkeletonChart className="xl:col-span-2" height={280} />
+        <SkeletonChart height={280} />
       </div>
+      <SkeletonTable rows={6} columns={6} />
     </div>
   )
 }
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <AppLayout>
+    <ErrorBoundary>
+      <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Overview />} />
-          <Route path="/olap" element={<Placeholder title="OLAP Explorer" />} />
-          <Route path="/delivery-analytics" element={<Placeholder title="Delivery Analytics" />} />
-          <Route path="/carrier-analytics" element={<Placeholder title="Carrier Analytics" />} />
-          <Route path="/risk-prediction" element={<Placeholder title="Risk Prediction" />} />
-          <Route path="/delivery-forecast" element={<Placeholder title="Delivery Forecast" />} />
-          <Route path="/orders" element={<Placeholder title="Orders" />} />
-          <Route path="/data-quality" element={<Placeholder title="Data Quality" />} />
-          <Route path="/model-monitoring" element={<Placeholder title="Model Monitoring" />} />
-          <Route path="/admin" element={<Placeholder title="Administration" />} />
-          <Route path="/settings" element={<Placeholder title="Settings" />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route element={<AppLayout />}>
+            <Route
+              index
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="olap"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <OLAPPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="risk-prediction"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <RiskPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="carrier-analytics"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <CarrierPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="delivery-analytics"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <DeliveryPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="orders"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <OrdersPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="data-quality"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <QualityPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="model-monitoring"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <MonitoringPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <AdminPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <SettingsPage />
+                </Suspense>
+              }
+            />
+
+            {/* Legacy aliases so older bookmarks keep working. */}
+            <Route path="overview" element={<Navigate to="/" replace />} />
+            <Route path="orders/explorer" element={<Navigate to="/orders" replace />} />
+            <Route path="monitoring" element={<Navigate to="/model-monitoring" replace />} />
+            <Route path="quality" element={<Navigate to="/data-quality" replace />} />
+
+            <Route
+              path="*"
+              element={
+                <Suspense
+                  fallback={
+                    <ErrorState
+                      title="Page unavailable"
+                      description="This view could not be loaded."
+                    />
+                  }
+                >
+                  <NotFoundPage />
+                </Suspense>
+              }
+            />
+          </Route>
         </Routes>
-      </AppLayout>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
-
-export default App
