@@ -3,6 +3,17 @@ import { statusOf } from '../data/orders'
 import { clamp, createRng, mean, median, percentile, sum } from '../lib/utils'
 import { selectOrders, summarise, timeSeries } from './analytics'
 import { MODEL_METADATA } from './ml'
+import {
+  CARRIERS,
+  CATEGORIES,
+  COUNTRIES,
+  PACKAGE_SIZES,
+  PAYMENT_METHODS,
+  SEGMENTS,
+  SHIPPING_METHODS,
+  WAREHOUSES,
+  WEATHER,
+} from '../lib/warehouse'
 import type { Filters, OrderRow } from '../types'
 /* ------------------------------------------------------------------ *
  * Data quality
@@ -16,6 +27,7 @@ export interface QualityColumn {
   total: number
   status: 'pass' | 'warn' | 'fail'
   detail: string
+  category: 'completeness' | 'uniqueness' | 'validity' | 'consistency' | 'referential' | 'timeliness'
 }
 
 export interface QualityDimension {
@@ -43,6 +55,14 @@ export interface QualityReport {
   issues: { severity: 'critical' | 'warning' | 'info'; title: string; body: string }[]
   tables: WarehouseTable[]
   rowsScanned: number
+  totalRecords: number
+  validRecords: number
+  invalidRecords: number
+  duplicateRate: number
+  completenessRate: number
+  datasetScores: { label: string; score: number; rows: number }[]
+  missingDistribution: { label: string; value: number }[]
+  issueDistribution: { label: string; value: number }[]
 }
 
 const TABLE_SPEC: Omit<WarehouseTable, 'lastLoaded'>[] = [
@@ -123,17 +143,25 @@ const TABLE_SPEC: Omit<WarehouseTable, 'lastLoaded'>[] = [
 export function dataQuality(): QualityReport {
   const orders = getOrders()
   const total = orders.length
-
-  const notNull = (pick: (o: Order) => unknown) => orders.filter((o) => pick(o) !== null && pick(o) !== undefined && pick(o) !== '').length
-
   const uniqueOrderIds = new Set(orders.map((o) => o.id)).size
   const validWeights = orders.filter((o) => o.weightKg >= 0.1 && o.weightKg <= 52.2).length
   const validRatings = orders.filter((o) => o.rating >= 1 && o.rating <= 5).length
   const validDays = orders.filter((o) => o.actualDays >= 0 && o.actualDays <= 27).length
   const consistentDelay = orders.filter((o) => o.delayDays === Math.max(0, o.actualDays - o.promisedDays)).length
   const consistentSpend = orders.filter((o) => o.shippingCost >= 4 && o.shippingCost <= 500).length
-  const referential = orders.filter((o) => /^[A-Z]{3}-\d{3}$/.test(o.warehouseId)).length
   const validOrderIds = orders.filter((o) => /^ORD-\d{6}$/.test(o.id)).length
+  const validDates = orders.filter((o) => o.dayIndex >= 0 && o.dayIndex < 365 && /^\d{4}-\d{2}-\d{2}$/.test(o.date)).length
+  const categoricalChecks: [string, string, Set<string>, (o: Order) => string][] = [
+    ['carrier', 'Carrier dimension membership', new Set(CARRIERS), (o) => o.carrier],
+    ['warehouse_id', 'Warehouse dimension membership', new Set(WAREHOUSES.map((w) => w.id)), (o) => o.warehouseId],
+    ['country', 'Customer country domain', new Set(COUNTRIES), (o) => o.country],
+    ['segment', 'Customer segment domain', new Set(SEGMENTS), (o) => o.segment],
+    ['category', 'Product category domain', new Set(CATEGORIES), (o) => o.category],
+    ['shipping_method', 'Shipping dimension membership', new Set(SHIPPING_METHODS), (o) => o.shippingMethod],
+    ['package_size', 'Package size domain', new Set(PACKAGE_SIZES), (o) => o.packageSize],
+    ['payment_method', 'Payment method domain', new Set(PAYMENT_METHODS), (o) => o.paymentMethod],
+    ['weather', 'Weather dimension membership', new Set(WEATHER), (o) => o.weather],
+  ]
 
   const mk = (
     table: string,
@@ -141,6 +169,7 @@ export function dataQuality(): QualityReport {
     rule: string,
     passed: number,
     detail: string,
+    category: QualityColumn['category'],
   ): QualityColumn => {
     const pct = total ? (passed / total) * 100 : 100
     return {
@@ -151,64 +180,53 @@ export function dataQuality(): QualityReport {
       total,
       status: pct >= 99.5 ? 'pass' : pct >= 97 ? 'warn' : 'fail',
       detail,
+      category,
     }
   }
 
   const columns: QualityColumn[] = [
-    mk('fact_delivery', 'order_id', 'Matches ^ORD-\\d{6}$', validOrderIds, 'Primary business key format'),
-    mk('fact_delivery', 'delivery_key', 'Unique, no gaps 1…50000', uniqueOrderIds, 'Surrogate key integrity'),
-    mk('fact_delivery', 'product_weight_kg', '0.1 ≤ x ≤ 52.2', validWeights, 'Physical plausibility bound'),
-    mk('fact_delivery', 'customer_rating', '1 ≤ x ≤ 5', validRatings, 'Ordinal rating domain'),
-    mk('fact_delivery', 'actual_delivery_days', '0 ≤ x ≤ 27', validDays, 'Non-negative elapsed days'),
-    mk('fact_delivery', 'delivery_delay_days', '= MAX(0, actual − promised)', consistentDelay, 'Derived column consistency'),
-    mk('fact_delivery', 'shipping_cost_usd', '4 ≤ x ≤ 500', consistentSpend, 'Spend envelope check'),
-    mk('fact_delivery', 'customer_key', 'Resolves in dim_customer', referential, 'Referential integrity'),
-    mk('fact_delivery', 'carrier_key', 'Resolves in dim_carrier', total, 'Referential integrity'),
-    mk('fact_delivery', 'date_key', 'Resolves in dim_date', total, 'Referential integrity'),
-    mk('fact_delivery', 'product_key', 'Resolves in dim_product', total, 'Referential integrity'),
-    mk('fact_delivery', 'shipping_key', 'Resolves in dim_shipping', total, 'Referential integrity'),
-    mk('dim_customer', 'customer_id', 'Matches ^CUS-\\d{6}$', notNull((o) => o.id), 'Natural key format'),
+    mk('fact_delivery', 'order_id', 'Matches ^ORD-\\d{6}$', validOrderIds, 'Primary business key format', 'validity'),
+    mk('fact_delivery', 'order_id', 'Unique order IDs', uniqueOrderIds, 'Duplicate business key check', 'uniqueness'),
+    mk('fact_delivery', 'product_weight_kg', '0.1 ≤ x ≤ 52.2', validWeights, 'Physical plausibility bound', 'validity'),
+    mk('fact_delivery', 'customer_rating', '1 ≤ x ≤ 5', validRatings, 'Ordinal rating domain', 'validity'),
+    mk('fact_delivery', 'actual_delivery_days', '0 ≤ x ≤ 27', validDays, 'Non-negative elapsed days', 'validity'),
+    mk('fact_delivery', 'delivery_delay_days', '= MAX(0, actual − promised)', consistentDelay, 'Derived column consistency', 'consistency'),
+    mk('fact_delivery', 'shipping_cost_usd', '4 ≤ x ≤ 500', consistentSpend, 'Spend envelope check', 'validity'),
+    mk('fact_delivery', 'order_date', 'ISO date and valid 2026 day', validDates, 'Date parsing and calendar range', 'validity'),
+    ...categoricalChecks.map(([column, rule, allowed, pick]) => mk(
+      'fact_delivery',
+      column,
+      rule,
+      orders.filter((o) => allowed.has(pick(o))).length,
+      'Value resolves to a conformed dimension member',
+      'referential',
+    )),
   ]
 
-  const rate = (p: number) => Math.round(p * 10_000) / 100
-
-  const completeness = rate((notNull((o) => o.carrier) / total) * 0.98 + 0.02)
-  const validity = rate(((validWeights + validRatings + validDays) / (total * 3)) * 100)
-  const uniqueness = rate((uniqueOrderIds / total) * 100)
-  const consistency = rate(((consistentDelay + consistentSpend) / (total * 2)) * 100)
-  const timeliness = 100
+  const rate = (p: number) => Math.round(p * 100) / 100
+  const missingFields: [string, (o: Order) => unknown][] = [
+    ['carrier', (o) => o.carrier], ['warehouse_id', (o) => o.warehouseId], ['country', (o) => o.country],
+    ['customer_segment', (o) => o.segment], ['product_category', (o) => o.category],
+    ['shipping_method', (o) => o.shippingMethod], ['order_date', (o) => o.date],
+  ]
+  const missingDistribution = missingFields.map(([label, pick]) => ({ label, value: orders.filter((o) => pick(o) === null || pick(o) === undefined || pick(o) === '').length }))
+  const completenessRate = rate(100 - (missingDistribution.reduce((a, item) => a + item.value, 0) / Math.max(total * missingFields.length, 1)) * 100)
+  const validity = rate(mean(columns.filter((c) => c.category === 'validity').map((c) => (c.passed / c.total) * 100)))
+  const uniqueness = rate((uniqueOrderIds / Math.max(total, 1)) * 100)
+  const consistency = rate(mean(columns.filter((c) => c.category === 'consistency').map((c) => (c.passed / c.total) * 100)))
+  const referential = rate(mean(columns.filter((c) => c.category === 'referential').map((c) => (c.passed / c.total) * 100)))
 
   const dimensions: QualityDimension[] = [
-    {
-      key: 'completeness',
-      label: 'Completeness',
-      score: completeness,
-      description: 'Required attributes populated across all fact rows',
-    },
+    { key: 'completeness', label: 'Completeness', score: completenessRate, description: 'Required attributes populated across all fact rows' },
     {
       key: 'validity',
       label: 'Validity',
-      score: validity,
+      score: validity || 100,
       description: 'Values inside declared domains and plausibility bounds',
     },
-    {
-      key: 'uniqueness',
-      label: 'Uniqueness',
-      score: uniqueness,
-      description: 'Surrogate and natural keys free of duplication',
-    },
-    {
-      key: 'consistency',
-      label: 'Consistency',
-      score: consistency,
-      description: 'Derived columns reconcile with their source measures',
-    },
-    {
-      key: 'timeliness',
-      label: 'Timeliness',
-      score: timeliness,
-      description: 'Partition freshness against the daily load schedule',
-    },
+    { key: 'uniqueness', label: 'Uniqueness', score: uniqueness, description: 'Surrogate and natural keys free of duplication' },
+    { key: 'consistency', label: 'Consistency', score: consistency || 100, description: 'Derived columns reconcile with their source measures' },
+    { key: 'timeliness', label: 'Referential integrity', score: referential || 100, description: 'Fact values resolve against conformed dimensions' },
   ]
 
   const failed = columns.filter((c) => c.status !== 'pass')
@@ -218,6 +236,31 @@ export function dataQuality(): QualityReport {
     body: `${c.detail}. ${((c.total - c.passed) / Math.max(c.total, 1) * 100).toFixed(2)}% of rows violate the rule (${c.total - c.passed} of ${c.total.toLocaleString()}).`,
   }))
 
+  const validRecords = orders.filter((o) => (
+    /^ORD-\d{6}$/.test(o.id)
+    && o.weightKg >= 0.1
+    && o.weightKg <= 52.2
+    && o.actualDays >= 0
+    && o.actualDays <= 27
+    && o.dayIndex >= 0
+    && o.dayIndex < 365
+    && /^\d{4}-\d{2}-\d{2}$/.test(o.date)
+  )).length
+  const issueDistribution = ['completeness', 'validity', 'uniqueness', 'consistency', 'referential'].map((category) => ({
+    label: category[0].toUpperCase() + category.slice(1),
+    value: columns.filter((c) => c.category === category && c.status !== 'pass').length,
+  }))
+  const scoreFor = (keys: string[]) => rate(mean(columns.filter((c) => keys.includes(c.column)).map((c) => (c.passed / c.total) * 100)))
+  const datasetScores = [
+    { label: 'fact_delivery', score: rate(mean(columns.filter((c) => c.table === 'fact_delivery').map((c) => (c.passed / c.total) * 100))), rows: total },
+    { label: 'dim_date', score: rate(validDates / Math.max(total, 1) * 100), rows: 365 },
+    { label: 'dim_customer', score: scoreFor(['country', 'segment']), rows: new Set(orders.map((o) => `${o.country}:${o.city}:${o.segment}`)).size },
+    { label: 'dim_carrier', score: scoreFor(['carrier']), rows: CARRIERS.length },
+    { label: 'dim_warehouse', score: scoreFor(['warehouse_id']), rows: WAREHOUSES.length },
+    { label: 'dim_product', score: scoreFor(['category', 'package_size']), rows: new Set(orders.map((o) => `${o.category}:${o.packageSize}`)).size },
+    { label: 'dim_shipping', score: scoreFor(['shipping_method', 'payment_method']), rows: new Set(orders.map((o) => `${o.shippingMethod}:${o.paymentMethod}`)).size },
+    { label: 'dim_weather', score: scoreFor(['weather']), rows: WEATHER.length },
+  ]
   return {
     score: rate(mean(dimensions.map((d) => d.score))),
     dimensions,
@@ -225,6 +268,14 @@ export function dataQuality(): QualityReport {
     issues,
     tables: TABLE_SPEC.map((t) => ({ ...t, lastLoaded: '2026-12-31 02:14 UTC' })),
     rowsScanned: total,
+    totalRecords: total,
+    validRecords,
+    invalidRecords: total - validRecords,
+    duplicateRate: rate((total - uniqueOrderIds) / Math.max(total, 1) * 100),
+    completenessRate,
+    datasetScores,
+    missingDistribution,
+    issueDistribution,
   }
 }
 

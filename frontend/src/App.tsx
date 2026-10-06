@@ -12,6 +12,7 @@ const OLAPPage = lazy(() => import('./pages/OLAPExplorer'))
 const RiskPage = lazy(() => import('./pages/RiskPrediction'))
 const CarrierPage = lazy(() => import('./pages/CarrierAnalytics'))
 const DeliveryPage = lazy(() => import('./pages/DeliveryAnalytics'))
+const ForecastPage = lazy(() => import('./pages/DeliveryForecast'))
 const OrdersPage = lazy(() => import('./pages/OrdersExplorer'))
 const QualityPage = lazy(() => import('./pages/DataQuality'))
 const MonitoringPage = lazy(() => import('./pages/ModelMonitoring'))
@@ -78,6 +79,14 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteSkeleton />}>
                   <DeliveryPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="delivery-forecast"
+              element={
+                <Suspense fallback={<RouteSkeleton />}>
+                  <ForecastPage />
                 </Suspense>
               }
             />

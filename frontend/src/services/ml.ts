@@ -125,7 +125,7 @@ export const DEFAULT_INPUT: PredictionInput = {
   order_year: 2026,
   order_month: 6,
   order_day: 12,
-  order_dayofweek: 5,
+  order_dayofweek: 4,
   order_is_weekend: false,
 }
 

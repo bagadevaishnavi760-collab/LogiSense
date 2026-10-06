@@ -114,12 +114,25 @@ async function request<T>(
       },
     })
 
+    const responseText = await res.text()
+    let responseBody: unknown
+    try {
+      responseBody = responseText ? JSON.parse(responseText) : undefined
+    } catch {
+      responseBody = undefined
+    }
+
     if (!res.ok) {
-      throw new ApiError(`${path} responded ${res.status}`, res.status, path)
+      const bodyMessage =
+        responseBody && typeof responseBody === 'object' && 'error' in responseBody &&
+        typeof responseBody.error === 'string'
+          ? responseBody.error
+          : undefined
+      throw new ApiError(bodyMessage ?? `${path} responded ${res.status}`, res.status, path)
     }
 
     setMode('live')
-    return (await res.json()) as T
+    return (responseBody ?? {}) as T
   } finally {
     window.clearTimeout(timer)
   }
@@ -163,6 +176,14 @@ export function postFallback<T, B>(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+/** Live-only POST for model inference; prediction errors must not become demo results. */
+export function postLive<T, B>(path: string, body: B, timeout = 30_000): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }, timeout)
 }
 
 /* ------------------------------------------------------------------ *
@@ -210,6 +231,7 @@ export const endpoints = {
   dimensions: '/olap/dimensions',
   measures: '/olap/measures',
   predict: '/ml/predict',
+  predictDuration: '/ml/predict/duration',
   predictBatch: '/ml/predict/batch',
   modelMetadata: '/ml/models',
   modelMetrics: '/ml/models/metrics',
