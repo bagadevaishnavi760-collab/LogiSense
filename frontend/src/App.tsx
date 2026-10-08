@@ -40,7 +40,7 @@ function RouteSkeleton() {
 }
 
 function AuthLoading() {
-  return <div className="flex min-h-dvh items-center justify-center bg-[#071329]"><span className="size-6 animate-spin rounded-full border-2 border-white/30 border-t-white" /></div>
+  return <div className="flex min-h-dvh items-center justify-center bg-canvas"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-brand" /></div>
 }
 
 function ProtectedRoute({ role, children }: { role: 'ADMIN' | 'CUSTOMER'; children: ReactNode }) {

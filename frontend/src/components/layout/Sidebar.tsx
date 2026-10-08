@@ -143,13 +143,13 @@ export function Sidebar({
                           {isActive ? (
                             <span
                               aria-hidden
-                              className="absolute -left-2.5 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r-full bg-[#5f8dfb]"
+                              className="absolute -left-2.5 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r-full bg-brand"
                             />
                           ) : null}
                           <Icon
                             className={cn(
                               'size-[15px] shrink-0 transition-colors',
-                              isActive ? 'text-[#7ea6fc]' : 'text-nav-fg-subtle group-hover:text-nav-fg-muted',
+                              isActive ? 'text-brand' : 'text-nav-fg-subtle group-hover:text-nav-fg-muted',
                             )}
                           />
                           {!collapsed ? <span className="truncate">{entry.label}</span> : null}

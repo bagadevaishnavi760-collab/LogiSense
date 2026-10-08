@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -6,10 +6,13 @@ const STORAGE_KEY = 'logisense-theme'
 const EVENT = 'logisense:theme'
 
 function systemTheme(): 'light' | 'dark' {
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 function read(): Theme {
+  if (typeof window === 'undefined') return 'system'
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
@@ -20,6 +23,7 @@ function read(): Theme {
 }
 
 function apply(preference: Theme): 'light' | 'dark' {
+  if (typeof document === 'undefined') return preference === 'system' ? 'light' : preference
   const resolved = preference === 'system' ? systemTheme() : preference
   document.documentElement.classList.toggle('dark', resolved === 'dark')
   document.documentElement.style.colorScheme = resolved
@@ -29,7 +33,7 @@ function apply(preference: Theme): 'light' | 'dark' {
 }
 
 let preference: Theme = read()
-let resolved: 'light' | 'dark' = 'dark'
+let resolved: 'light' | 'dark' = 'light'
 const listeners = new Set<(p: Theme) => void>()
 
 function commit(next: Theme) {
@@ -40,38 +44,42 @@ function commit(next: Theme) {
   } catch {
     /* ignore */
   }
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: next }))
   listeners.forEach((fn) => fn(next))
 }
 
-apply(preference)
+if (typeof window !== 'undefined') apply(preference)
 
 if (typeof window !== 'undefined') {
-  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-    if (preference === 'system') commit('system')
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  media.addEventListener('change', () => {
+    if (preference === 'system') {
+      resolved = apply(preference)
+      listeners.forEach((fn) => fn(preference))
+    }
+  })
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return
+    const next = event.newValue
+    if (next === 'light' || next === 'dark' || next === 'system') commit(next)
   })
 }
 
 export function useTheme() {
-  const [pref, setPref] = useState<Theme>(preference)
-
-  useEffect(() => {
-    const fn = (p: Theme) => setPref(p)
-    listeners.add(fn)
-    return () => {
-      listeners.delete(fn)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (pref === preference) return
-    commit(pref)
-  }, [pref])
+  useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    () => `${preference}:${resolved}`,
+    () => 'system',
+  )
 
   const toggle = useCallback(() => {
     commit(resolved === 'dark' ? 'light' : 'dark')
-  }, [resolved])
+  }, [])
 
-  return { theme: resolved, preference: pref, setTheme: setPref, toggle }
+  return { theme: resolved, preference, setTheme: commit, toggle }
 }
 
 export function setGlobalTheme(next: Theme) {

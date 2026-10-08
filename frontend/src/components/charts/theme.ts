@@ -31,6 +31,8 @@ export const SEMANTIC = {
   neutral: 'var(--color-chart-6)',
 } as const
 
+export type SemanticTone = keyof typeof SEMANTIC
+
 export const WEATHER_TONE: Record<string, keyof typeof SEMANTIC> = {
   Clear: 'success',
   Cloudy: 'info',

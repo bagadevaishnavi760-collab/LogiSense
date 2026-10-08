@@ -198,6 +198,7 @@ export function ColumnChart({
   onSelect,
   activeLabel,
   xInterval = 0,
+  layout = 'vertical',
 }: {
   data: readonly Record<string, unknown>[]
   series: { key: string; label: string; color?: string; format?: FormatterKey }[]
@@ -209,34 +210,61 @@ export function ColumnChart({
   onSelect?: (label: string) => void
   activeLabel?: string | null
   xInterval?: number
+  layout?: 'vertical' | 'horizontal'
 }) {
   const primary = formatters[series[0]?.format ?? format]
+  const horizontal = layout === 'horizontal'
 
   return (
     <ChartFrame height={height} empty={data.length === 0}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data as Record<string, unknown>[]}
-          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+          layout={layout}
+          margin={horizontal ? { top: 8, right: 8, bottom: 8, left: 4 } : { top: 8, right: 8, bottom: 0, left: 0 }}
           barGap={stacked ? 0 : 2}
         >
           <CartesianGrid {...gridLine} />
-          <XAxis
-            dataKey="label"
-            tick={axisTick}
-            axisLine={axisLine}
-            tickLine={false}
-            interval={xInterval}
-            dy={4}
-          />
-          <YAxis
-            tick={axisTick}
-            axisLine={false}
-            tickLine={false}
-            width={48}
-            domain={yDomain ?? [0, max ?? 'auto']}
-            tickFormatter={(v: number) => primary(v)}
-          />
+          {horizontal ? (
+            <>
+              <XAxis
+                type="number"
+                domain={yDomain ?? [0, max ?? 'auto']}
+                tick={axisTick}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => primary(v)}
+              />
+              <YAxis
+                type="category"
+                dataKey="label"
+                tick={axisTick}
+                axisLine={axisLine}
+                tickLine={false}
+                width={128}
+                interval={0}
+              />
+            </>
+          ) : (
+            <>
+              <XAxis
+                dataKey="label"
+                tick={axisTick}
+                axisLine={axisLine}
+                tickLine={false}
+                interval={xInterval}
+                dy={4}
+              />
+              <YAxis
+                tick={axisTick}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+                domain={yDomain ?? [0, max ?? 'auto']}
+                tickFormatter={(v: number) => primary(v)}
+              />
+            </>
+          )}
           <Tooltip
             cursor={{ fill: 'var(--color-surface-hover)' }}
             wrapperStyle={{ outline: 'none' }}
@@ -271,9 +299,9 @@ export function ColumnChart({
               radius={
                 stacked
                   ? i === series.length - 1
-                    ? [3, 3, 0, 0]
+                    ? horizontal ? [0, 3, 3, 0] : [3, 3, 0, 0]
                     : [0, 0, 0, 0]
-                  : [3, 3, 0, 0]
+                  : horizontal ? [0, 3, 3, 0] : [3, 3, 0, 0]
               }
               maxBarSize={stacked ? 40 : 26}
               isAnimationActive={false}

@@ -12,7 +12,7 @@ import {
 import type { ReactNode } from 'react'
 import { ChartFrame, SwatchLegend } from './primitives'
 import { ChartTooltipShell, TooltipRow, TooltipTitle } from './tooltip'
-import { SEMANTIC } from './theme'
+import { CATEGORICAL, SEMANTIC, type SemanticTone } from './theme'
 import { formatNumber, formatPercent } from '../../lib/format'
 
 export interface DonutSlice {
@@ -20,6 +20,25 @@ export interface DonutSlice {
   value: number
   count: number
   color: string
+}
+
+function resolveSliceColors(data: readonly DonutSlice[]): DonutSlice[] {
+  const used = new Set<string>()
+  return data.map((slice, index) => {
+    const preferred = resolveSliceColor(slice.color)
+    let color = preferred
+
+    if (used.has(color)) {
+      color = CATEGORICAL.find((candidate) => !used.has(candidate)) ?? CATEGORICAL[index % CATEGORICAL.length]
+    }
+
+    used.add(color)
+    return { ...slice, color }
+  })
+}
+
+function resolveSliceColor(color: string): string {
+  return color in SEMANTIC ? SEMANTIC[color as SemanticTone] : color
 }
 
 /* ------------------------------------------------------------------ *
@@ -60,13 +79,15 @@ export function DonutChart({
     return <ChartFrame height={height} empty emptyLabel={emptyLabel} />
   }
 
+  const slices = resolveSliceColors(data)
+
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
       <div className="relative shrink-0" style={{ width: height, height }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <Pie
-              data={data as DonutSlice[]}
+              data={slices}
               dataKey="value"
               nameKey="name"
               cx="50%"
@@ -79,7 +100,7 @@ export function DonutChart({
               startAngle={90}
               endAngle={-270}
             >
-              {data.map((s) => (
+              {slices.map((s) => (
                 <Cell key={s.name} fill={s.color} />
               ))}
             </Pie>
@@ -123,7 +144,7 @@ export function DonutChart({
       {showLegend ? (
         <SwatchLegend
           className={legendClassName ?? 'min-w-0 flex-1'}
-          items={data.map((s) => ({
+          items={slices.map((s) => ({
             label: s.name,
             color: s.color,
             value: formatPercent((s.value / total) * 100, 1),

@@ -259,7 +259,7 @@ export default function CarrierAnalytics() {
           <div className="grid gap-5 xl:grid-cols-2">
             <Panel>
               <PanelHeader title="Carrier On-Time vs Late Delivery" description="Reliability comparison for carriers in the current filtered population." />
-              <PanelBody><ColumnChart data={comparisonData} series={[{ key: 'onTime', label: 'On-time rate', color: SEMANTIC.success, format: 'percent' }, { key: 'late', label: 'Late rate', color: SEMANTIC.danger, format: 'percent' }]} format="percent" yDomain={[0, 100]} height={300} /></PanelBody>
+              <PanelBody><ColumnChart data={comparisonData} series={[{ key: 'onTime', label: 'On-time rate', color: SEMANTIC.success, format: 'percent' }, { key: 'late', label: 'Late rate', color: SEMANTIC.danger, format: 'percent' }]} format="percent" yDomain={[0, 100]} height={Math.max(300, comparisonData.length * 42)} layout="horizontal" /></PanelBody>
             </Panel>
             <Panel>
               <PanelHeader title="Carrier Performance Trend" description="On-time and late rates over the selected date range." />
@@ -267,11 +267,11 @@ export default function CarrierAnalytics() {
             </Panel>
             <Panel>
               <PanelHeader title="Average Delivery Time by Carrier" />
-              <PanelBody><ColumnChart data={deliveryTimeData} series={[{ key: 'value', label: 'Average delivery days', color: SEMANTIC.info, format: 'days' }]} format="days" height={280} /></PanelBody>
+              <PanelBody><ColumnChart data={deliveryTimeData} series={[{ key: 'value', label: 'Average delivery days', color: SEMANTIC.info, format: 'days' }]} format="days" height={Math.max(280, deliveryTimeData.length * 42)} layout="horizontal" /></PanelBody>
             </Panel>
             <Panel>
               <PanelHeader title="Average Shipping Cost by Carrier" description="Average shipping cost per order, derived from shipping cost and order count." />
-              <PanelBody><ColumnChart data={shippingCostData} series={[{ key: 'value', label: 'Average shipping cost', color: SEMANTIC.teal, format: 'currency' }]} format="currency" height={280} /></PanelBody>
+              <PanelBody><ColumnChart data={shippingCostData} series={[{ key: 'value', label: 'Average shipping cost', color: SEMANTIC.teal, format: 'currency' }]} format="currency" height={Math.max(280, shippingCostData.length * 42)} layout="horizontal" /></PanelBody>
             </Panel>
           </div>
 
