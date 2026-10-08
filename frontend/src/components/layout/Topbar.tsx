@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import {
   Bell,
   ChevronDown,
+  LogOut,
   Menu,
   PanelLeftOpen,
   RefreshCw,
@@ -29,6 +30,7 @@ import { Separator } from '../ui/controls'
 import { Logomark } from './Sidebar'
 import { getConnection, onConnectionChange, apiConfig, type ConnectionMode } from '../../services/api'
 import { cn } from '../../lib/cn'
+import { useAuth } from '../../context/AuthContext'
 
 /* ------------------------------------------------------------------ *
  * Connection badge
@@ -197,17 +199,13 @@ function NotificationsMenu() {
  * User menu
  * ------------------------------------------------------------------ */
 
-const USER = {
-  name: 'Ananya Rao',
-  email: 'a.rao@logisense.io',
-  role: 'Head of Operations Analytics',
-  org: 'LogiSense · Network Ops',
-}
-
 function UserMenu() {
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
-  const initials = USER.name
+  const name = user?.email.split('@')[0] ?? 'Admin'
+  const role = user?.role === 'ADMIN' ? 'Operations administrator' : 'Customer'
+  const initials = name
     .split(' ')
     .map((p) => p[0])
     .join('')
@@ -224,9 +222,9 @@ function UserMenu() {
             {initials}
           </span>
           <span className="hidden min-w-0 text-left lg:block">
-            <span className="block max-w-[132px] truncate text-xs font-medium leading-4 text-fg">{USER.name}</span>
+            <span className="block max-w-[132px] truncate text-xs font-medium leading-4 text-fg">{name}</span>
             <span className="block max-w-[132px] truncate text-[10.5px] leading-3.5 text-fg-subtle">
-              {USER.role}
+              {role}
             </span>
           </span>
           <ChevronDown className="hidden size-3.5 shrink-0 text-fg-subtle lg:block" />
@@ -239,8 +237,8 @@ function UserMenu() {
             {initials}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-fg">{USER.name}</p>
-            <p className="truncate text-2xs text-fg-muted">{USER.email}</p>
+            <p className="truncate text-[13px] font-semibold text-fg">{name}</p>
+            <p className="truncate text-2xs text-fg-muted">{user?.email}</p>
           </div>
         </div>
         <DropdownMenuSeparator />
@@ -257,8 +255,12 @@ function UserMenu() {
           Data quality report
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => { void signOut().then(() => navigate('/login', { replace: true })) }}>
+          <LogOut />
+          Sign out
+        </DropdownMenuItem>
         <div className="px-2 py-1.5 text-2xs text-fg-subtle">
-          Signed in to <span className="font-medium text-fg-muted">{USER.org}</span>
+          Signed in as <span className="font-medium text-fg-muted">{user?.role}</span>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
