@@ -1,4 +1,3 @@
-# LogiSense
 
 ### Intelligent Supply Chain & Delivery Analytics Platform
 
