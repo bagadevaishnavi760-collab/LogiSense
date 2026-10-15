@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 from pathlib import Path
 
@@ -88,6 +89,21 @@ def health():
         "rows": rows,
         "models": models_available * len(MODEL_PATHS),
     })
+
+
+@app.get("/api/ml/metadata")
+def ml_metadata():
+    try:
+        with MODEL_METADATA_PATH.open("r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+        if not isinstance(metadata, dict):
+            raise ValueError("Model metadata must be a JSON object.")
+        return jsonify(metadata)
+    except FileNotFoundError:
+        return jsonify({"error": "Model metadata is unavailable."}), 503
+    except (OSError, ValueError):
+        app.logger.exception("Model metadata could not be read")
+        return jsonify({"error": "Model metadata is invalid or unreadable."}), 500
 
 
 @app.post("/api/ml/predict")

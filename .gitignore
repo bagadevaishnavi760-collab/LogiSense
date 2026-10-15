@@ -17,6 +17,7 @@ env/
 # Machine Learning models
 *.pkl
 *.joblib
+models/backups/
 
 # IDE
 .vscode/

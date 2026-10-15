@@ -9,6 +9,7 @@ import { formatPercent } from '../lib/format'
 import { FEATURES, MODEL_METADATA } from '../services/ml'
 import { cn } from '../lib/cn'
 import { TableWrap, THead, TBody, TR, TH, TD } from '../components/ui/table'
+import { RankedBars } from '../components/charts/bars'
 
 type ModelKey = 'classification' | 'regression'
 
@@ -99,7 +100,9 @@ export default function ModelMonitoring() {
               { label: 'Recall', value: formatPercent(classification.metrics.recall * 100, 2) },
               { label: 'F1 score', value: formatPercent(classification.metrics.f1 * 100, 2) },
               { label: 'ROC-AUC', value: classification.metrics.rocAuc.toFixed(4) },
+              { label: 'PR-AUC', value: classification.metrics.prAuc.toFixed(4), detail: 'Useful with class imbalance' },
               { label: 'Threshold', value: classification.threshold.toFixed(2), detail: 'Operating classification threshold' },
+              { label: 'Confusion matrix', value: `${MODEL_METADATA.classification.metrics.confusionMatrix[0][0]} / ${MODEL_METADATA.classification.metrics.confusionMatrix[0][1]}`, detail: `TN / FP · FN ${MODEL_METADATA.classification.metrics.confusionMatrix[1][0]} / TP ${MODEL_METADATA.classification.metrics.confusionMatrix[1][1]}` },
             ],
           },
           {
@@ -155,9 +158,13 @@ export default function ModelMonitoring() {
         <ModelCard model={regression} />
       </div>
 
-      <Panel>
-        <PanelHeader title="Model comparison" description="The two persisted models solve separate delivery operations problems and share the same 20 input features." />
-        <PanelBody><TableWrap><THead><TR><TH>Model</TH><TH>Task</TH><TH>Target</TH><TH align="right">Features</TH><TH>Status</TH><TH>Best available evidence</TH></TR></THead><TBody><TR><TD className="font-medium text-fg">{classification.name}</TD><TD>Classification</TD><TD className="text-xs">{classification.target}</TD><TD align="right" className="tnum">{classification.featureCount}</TD><TD><StatusBadge status={classification.status} /></TD><TD className="text-xs text-fg-muted">F1 {classification.metrics[3].value} · ROC-AUC {classification.metrics[4].value}</TD></TR><TR><TD className="font-medium text-fg">{regression.name}</TD><TD>Regression</TD><TD className="text-xs">{regression.target}</TD><TD align="right" className="tnum">{regression.featureCount}</TD><TD><StatusBadge status={regression.status} /></TD><TD className="text-xs text-fg-muted">MAE {regression.metrics[0].value} days · R² {regression.metrics[2].value}</TD></TR></TBody></TableWrap></PanelBody>
+      <ComparisonPanel />
+
+      <Panel tone="accent">
+        <PanelBody className="space-y-2">
+          <p className="text-sm font-semibold text-fg">How to interpret these results</p>
+          <p className="text-xs leading-5 text-fg-muted">{MODEL_METADATA.operationalNote} Candidate selection uses training cross-validation only; the held-out test set is reserved for final reporting. The selected classification model is chosen for cross-validated F1, and the selected regression model for cross-validated MAE. This is a predictive-performance choice, not a claim that the models are universally best or that future deliveries will match these estimates.</p>
+        </PanelBody>
       </Panel>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
@@ -191,6 +198,29 @@ export default function ModelMonitoring() {
         <PanelBody className="grid gap-5 md:grid-cols-2"><Detail title={classification.name} icon={<Target />} body={`Classification purpose: ${classification.purpose} Target variable: ${classification.target}. Accuracy, precision, recall, F1 and ROC-AUC are holdout evaluation metrics. A probability of ${MODEL_METADATA.classification.threshold.toFixed(2)} or higher is the configured late-delivery decision threshold.`} /><Detail title={regression.name} icon={<BarChart3 />} body={`Regression purpose: ${regression.purpose} Target variable: ${regression.target}. MAE and RMSE are measured in delivery days; R² describes explained variance on the holdout evaluation.`} /></PanelBody>
       </Panel>
     </div>
+  )
+}
+
+function ComparisonPanel() {
+  const [classificationSort, setClassificationSort] = useState<'f1' | 'rocAuc' | 'prAuc'>('f1')
+  const [regressionSort, setRegressionSort] = useState<'mae' | 'rmse' | 'r2'>('mae')
+  const classification = [...MODEL_METADATA.comparisons.classification].sort((a, b) => b[classificationSort] - a[classificationSort])
+  const regression = [...MODEL_METADATA.comparisons.regression].sort((a, b) => (regressionSort === 'r2' ? b[regressionSort] - a[regressionSort] : a[regressionSort] - b[regressionSort]))
+  return (
+    <Panel>
+      <PanelHeader title="Candidate model comparison" description="All candidates were evaluated on the same held-out test set. Sort columns to compare measured performance; the selected model is marked." />
+      <PanelBody className="space-y-6">
+        <div className="grid gap-5 xl:grid-cols-2">
+          <RankedBars data={classification.map((model) => ({ label: model.modelName, value: model.f1 * 100, sublabel: `ROC-AUC ${model.rocAuc.toFixed(3)} · PR-AUC ${model.prAuc.toFixed(3)}` }))} format="percent" reference={MODEL_METADATA.classification.metrics.f1 * 100} referenceLabel="selected F1" labelWidth={150} />
+          <RankedBars data={regression.map((model) => ({ label: model.modelName, value: model.mae, sublabel: `RMSE ${model.rmse.toFixed(3)} days · R² ${model.r2.toFixed(3)}` }))} format="days" reference={MODEL_METADATA.regression.metrics.mae} referenceLabel="selected MAE" labelWidth={190} />
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <TableWrap><THead><TR><TH>Classification model</TH><TH sortable sorted={classificationSort === 'f1' ? 'desc' : null} onSort={() => setClassificationSort('f1')} align="right">F1</TH><TH sortable sorted={classificationSort === 'rocAuc' ? 'desc' : null} onSort={() => setClassificationSort('rocAuc')} align="right">ROC-AUC</TH><TH align="right">PR-AUC</TH><TH>Decision</TH></TR></THead><TBody>{classification.map((model) => <TR key={model.modelName}><TD className="font-medium text-fg">{model.modelName}</TD><TD align="right" className="tnum">{model.f1.toFixed(4)}</TD><TD align="right" className="tnum">{model.rocAuc.toFixed(4)}</TD><TD align="right" className="tnum">{model.prAuc.toFixed(4)}</TD><TD>{model.modelName === MODEL_METADATA.classification.family ? <Badge variant="success">Selected</Badge> : null}</TD></TR>)}</TBody></TableWrap>
+          <TableWrap><THead><TR><TH>Regression model</TH><TH sortable sorted={regressionSort === 'mae' ? 'asc' : null} onSort={() => setRegressionSort('mae')} align="right">MAE</TH><TH sortable sorted={regressionSort === 'rmse' ? 'asc' : null} onSort={() => setRegressionSort('rmse')} align="right">RMSE</TH><TH sortable sorted={regressionSort === 'r2' ? 'desc' : null} onSort={() => setRegressionSort('r2')} align="right">R²</TH><TH>Decision</TH></TR></THead><TBody>{regression.map((model) => <TR key={model.modelName}><TD className="font-medium text-fg">{model.modelName}</TD><TD align="right" className="tnum">{model.mae.toFixed(4)}</TD><TD align="right" className="tnum">{model.rmse.toFixed(4)}</TD><TD align="right" className="tnum">{model.r2.toFixed(4)}</TD><TD>{model.modelName === MODEL_METADATA.regression.family ? <Badge variant="success">Selected</Badge> : null}</TD></TR>)}</TBody></TableWrap>
+        </div>
+        <p className="text-xs text-fg-muted">Classification uses a threshold selected from training cross-validation predictions ({MODEL_METADATA.classification.threshold.toFixed(2)}). Regression selection prioritizes lower MAE; classification selection prioritizes higher F1. Dataset: {MODEL_METADATA.dataset.trainingRows.toLocaleString()} training rows and {MODEL_METADATA.dataset.testRows.toLocaleString()} held-out rows.</p>
+      </PanelBody>
+    </Panel>
   )
 }
 

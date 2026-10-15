@@ -15,6 +15,7 @@ import {
   MEASURES,
   OPERATIONS,
   type Measure,
+  type AggregationMethod,
   type OlapRequest,
   type OlapResult,
   type Slice,
@@ -26,7 +27,7 @@ import {
 } from '../services/olap'
 import { formatCompact, formatCompactCurrency, formatCurrency, formatDays, formatKm, formatNumber, formatPercent, formatRatio } from '../lib/format'
 import { SERIES } from '../components/charts/theme'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 const DIMENSION_GROUPS = ['Time', 'Network', 'Customer', 'Product', 'Service'] as const
 
@@ -41,8 +42,11 @@ export default function OLAPExplorer() {
     level: 'month',
   })
   const [measureKey, setMeasureKey] = useState('revenue')
+  const [aggregation, setAggregation] = useState<AggregationMethod | undefined>(undefined)
+  const [dateGranularity, setDateGranularity] = useState('month')
   const [slices, setSlices] = useState<Slice[]>([])
   const [expanded, setExpanded] = useState<string[]>([])
+  const [page, setPage] = useState(0)
 
   const request: OlapRequest = useMemo(
     () => ({
@@ -50,6 +54,8 @@ export default function OLAPExplorer() {
       rowLevels: rowDims,
       colLevel: colDim,
       measure: measureKey,
+      aggregation,
+      dateGranularity,
       compareMeasure: null,
       filters,
       slices,
@@ -59,6 +65,10 @@ export default function OLAPExplorer() {
   )
 
   const result = useMemo(() => runOlap(request), [request])
+  const unfilteredResult = useMemo(
+    () => runOlap({ ...request, filters: {}, slices: [], operation: 'pivot' }),
+    [request],
+  )
   const measure = getMeasure(measureKey)
 
   const hasData = result.scannedOrders > 0
@@ -129,8 +139,11 @@ export default function OLAPExplorer() {
     setRowDims([{ dimension: 'carrier', level: 'carrier' }])
     setColDim({ dimension: 'date', level: 'month' })
     setMeasureKey('revenue')
+    setAggregation(undefined)
+    setDateGranularity('month')
     setSlices([])
     setExpanded([])
+    setPage(0)
   }, [])
 
   const clearSlices = useCallback(() => {
@@ -159,7 +172,11 @@ export default function OLAPExplorer() {
     })
   }, [result])
 
-  const shouldUseLineChart = result.colMembers.length > 5 && result.colMembers.length <= 12
+  const pageSize = 50
+  const visibleRows = result.rows.slice(page * pageSize, page * pageSize + pageSize)
+  const pageCount = Math.max(1, Math.ceil(result.rows.length / pageSize))
+  const deltaOrders = result.scannedOrders - unfilteredResult.scannedOrders
+  const deltaValue = result.grandTotalValue - unfilteredResult.grandTotalValue
 
   return (
     <div className="space-y-5">
@@ -303,6 +320,40 @@ export default function OLAPExplorer() {
 
             <Separator />
 
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div>
+                <label className="mb-2 block text-2xs font-semibold uppercase tracking-[0.09em] text-fg-subtle">Aggregation</label>
+                <Select value={aggregation ?? 'default'} onValueChange={(value) => setAggregation(value === 'default' ? undefined : value as AggregationMethod)}>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Measure default</SelectItem>
+                    <SelectItem value="count">Count</SelectItem>
+                    <SelectItem value="sum">Sum</SelectItem>
+                    <SelectItem value="average">Average</SelectItem>
+                    <SelectItem value="minimum">Minimum</SelectItem>
+                    <SelectItem value="maximum">Maximum</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-2 block text-2xs font-semibold uppercase tracking-[0.09em] text-fg-subtle">Date granularity</label>
+                <Select value={dateGranularity} onValueChange={(value) => {
+                  setDateGranularity(value)
+                  setColDim((current) => current?.dimension === 'date' ? { ...current, level: value } : current)
+                  setRowDims((current) => current.map((item) => item.dimension === 'date' ? { ...item, level: value } : item))
+                }}>
+                  <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {getDimension('date')?.levels.map((level) => <SelectItem key={level.key} value={level.key}>{level.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <p className="text-xs leading-5 text-fg-muted">Roll-up and drill-down move the selected date or categorical hierarchy one level at a time. The explicit level selectors remain available for precise navigation.</p>
+
+            <Separator />
+
             {/* Slices */}
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -332,6 +383,7 @@ export default function OLAPExplorer() {
                     <SliceFilter
                       key={i}
                       slice={slice}
+                      operation={operation}
                       filters={filters}
                       otherSlices={slices.filter((_, j) => j !== i)}
                       onChange={(field, value) => updateSlice(i, field, value)}
@@ -380,6 +432,9 @@ export default function OLAPExplorer() {
                     </div>
                   ))}
                 </div>
+                <div className="rounded-md border border-line-soft bg-surface-sunken px-3 py-2 text-xs text-fg-muted">
+                  <span className="font-medium text-fg">{operationLabel(operation)}</span> {operationSummary(operation, result, deltaOrders, deltaValue, measure.label)}
+                </div>
 
                 {/* Chart */}
                 {chartData.length > 0 && result.colMembers.length > 0 && (
@@ -387,26 +442,7 @@ export default function OLAPExplorer() {
                     <h3 className="mb-3 text-sm font-semibold text-fg">Visualization</h3>
                     <div className="h-[280px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        {shouldUseLineChart ? (
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--grid))" />
-                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                            <YAxis tickFormatter={(v) => formatValue(v, measure.format)} />
-                            <Tooltip
-                              formatter={(v: any) => [formatValue(v ?? 0, measure.format), measure.label]}
-                              contentStyle={{
-                                backgroundColor: 'rgb(var(--surface-raised))',
-                                border: '1px solid rgb(var(--line))',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                              }}
-                            />
-                            {result.colMembers.map((col, i) => (
-                              <Line key={col} type="monotone" dataKey={col} stroke={SERIES[i % SERIES.length]} strokeWidth={2} dot={{ r: 3 }} />
-                            ))}
-                          </LineChart>
-                        ) : (
-                          <BarChart data={chartData} layout="vertical">
+                        <BarChart data={chartData} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgb(var(--grid))" />
                             <XAxis type="number" tickFormatter={(v) => formatValue(v, measure.format)} />
                             <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
@@ -422,8 +458,7 @@ export default function OLAPExplorer() {
                             {result.colMembers.map((col, i) => (
                               <Bar key={col} dataKey={col} fill={SERIES[i % SERIES.length]} />
                             ))}
-                          </BarChart>
-                        )}
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
@@ -468,7 +503,7 @@ export default function OLAPExplorer() {
                     </TR>
                   </THead>
                   <TBody>
-                    {result.rows.map((row) => (
+                    {visibleRows.map((row) => (
                       <OlapRow
                         key={row.id}
                         node={row}
@@ -492,6 +527,14 @@ export default function OLAPExplorer() {
                     </TR>
                   </TBody>
                 </TableWrap>
+                <div className="mt-3 flex items-center justify-between text-xs text-fg-muted">
+                  <span>Showing {result.rows.length ? page * pageSize + 1 : 0}–{Math.min((page + 1) * pageSize, result.rows.length)} of {result.rows.length} top-level rows</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Previous</Button>
+                    <span>Page {page + 1} of {pageCount}</span>
+                    <Button variant="outline" size="sm" disabled={page >= pageCount - 1} onClick={() => setPage((value) => value + 1)}>Next</Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -571,12 +614,14 @@ function DimensionSelector({
 
 function SliceFilter({
   slice,
+  operation,
   filters,
   otherSlices,
   onChange,
   onRemove,
 }: {
   slice: Slice
+  operation: OlapRequest['operation']
   filters: any
   otherSlices: Slice[]
   onChange: (field: keyof Slice, value: string | string[]) => void
@@ -630,7 +675,7 @@ function SliceFilter({
                 checked={slice.values.includes(member)}
                 onChange={(e) => {
                   const next = e.target.checked
-                    ? [...slice.values, member]
+                    ? operation === 'slice' ? [member] : [...slice.values, member]
                     : slice.values.filter((v) => v !== member)
                   onChange('values', next)
                 }}
@@ -730,4 +775,23 @@ function formatValue(value: number, format: Measure['format']): string {
     default:
       return String(value)
   }
+}
+
+function operationLabel(operation: OlapRequest['operation']): string {
+  return OPERATIONS.find((item) => item.key === operation)?.label ?? operation
+}
+
+function operationSummary(
+  operation: OlapRequest['operation'],
+  result: OlapResult,
+  deltaOrders: number,
+  deltaValue: number,
+  measureLabel: string,
+): string {
+  if (!result.scannedOrders) return 'returned no matching orders after the configured filters.'
+  if (operation === 'pivot') return `cross-tabulated ${measureLabel} across ${result.rows.length} row members and ${result.colMembers.length} column members.`
+  if (operation === 'slice') return `filtered the cube to one member and recalculated ${measureLabel} across ${result.scannedOrders.toLocaleString()} orders.`
+  if (operation === 'dice') return `applied multiple simultaneous member filters; ${Math.abs(deltaOrders).toLocaleString()} orders were ${deltaOrders < 0 ? 'removed from' : 'added to'} the unfiltered cube (${deltaValue >= 0 ? '+' : ''}${formatValue(deltaValue, 'number')} measure units).`
+  if (operation === 'rollup') return `aggregated at the next higher hierarchy level and recalculated ${measureLabel}.`
+  return `expanded the hierarchy to a more detailed level and recalculated ${measureLabel}.`
 }

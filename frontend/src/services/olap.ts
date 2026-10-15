@@ -171,6 +171,43 @@ export interface Measure {
   compute: (orders: readonly Order[]) => number
 }
 
+export type AggregationMethod = 'count' | 'sum' | 'average' | 'minimum' | 'maximum'
+
+const measureValues: Record<string, (orders: readonly Order[]) => number[]> = {
+  orders: (orders) => orders.map(() => 1),
+  revenue: (orders) => orders.map((o) => o.orderValue),
+  shippingCost: (orders) => orders.map((o) => o.shippingCost),
+  margin: (orders) => orders.map((o) => o.orderValue - o.shippingCost),
+  avgDeliveryDays: (orders) => orders.map((o) => o.actualDays),
+  avgPromisedDays: (orders) => orders.map((o) => o.promisedDays),
+  avgDelayDays: (orders) => orders.map((o) => o.delayDays),
+  lateRate: (orders) => orders.map((o) => (o.late ? 100 : 0)),
+  onTimeRate: (orders) => orders.map((o) => (o.late ? 0 : 100)),
+  returnRate: (orders) => orders.map((o) => (o.returned ? 100 : 0)),
+  avgDistance: (orders) => orders.map((o) => o.distanceKm),
+  avgOrderValue: (orders) => orders.map((o) => o.orderValue),
+  avgWeight: (orders) => orders.map((o) => o.weightKg),
+  avgRating: (orders) => orders.map((o) => o.rating),
+  avgAttempts: (orders) => orders.map((o) => o.attempts),
+  costPerOrder: (orders) => orders.map((o) => o.shippingCost),
+}
+
+export function aggregateMeasure(
+  measure: Measure,
+  orders: readonly Order[],
+  aggregation?: AggregationMethod,
+): number {
+  if (!orders.length) return 0
+  if (!aggregation) return measure.compute(orders)
+  if (aggregation === 'count') return orders.length
+  const values = measureValues[measure.key]?.(orders) ?? []
+  if (!values.length) return 0
+  if (aggregation === 'sum') return sum(values)
+  if (aggregation === 'minimum') return Math.min(...values)
+  if (aggregation === 'maximum') return Math.max(...values)
+  return mean(values)
+}
+
 export const MEASURES: Measure[] = [
   {
     key: 'orders',
@@ -366,6 +403,8 @@ export interface OlapRequest {
   rowLevels: { dimension: string; level: string }[]
   colLevel: { dimension: string; level: string } | null
   measure: string
+  aggregation?: AggregationMethod
+  dateGranularity?: string
   compareMeasure: string | null
   filters: Partial<Filters>
   slices: Slice[]
@@ -397,6 +436,8 @@ export interface OlapResult {
   grandTotalValue: number
   scannedOrders: number
   cellCount: number
+  filtersApplied: number
+  aggregation: AggregationMethod | 'default'
 }
 
 function matchesLevel(order: Order, level: DimensionLevel | undefined, member: string): boolean {
@@ -411,20 +452,29 @@ export function runOlap(request: OlapRequest): OlapResult {
   let base = selectOrders(request.filters)
 
   // 2. Slices (slice / dice)
-  for (const slice of request.slices) {
+  const activeSlices = request.operation === 'slice' ? request.slices.slice(0, 1) : request.slices
+  for (const slice of activeSlices) {
     const level = getLevel(slice.dimension, slice.level)
     if (!level || !slice.values.length) continue
-    const allowed = new Set(slice.values)
+    const allowed = new Set(request.operation === 'slice' ? slice.values.slice(0, 1) : slice.values)
     base = base.filter((o) => allowed.has(level.access(o)))
   }
 
-  const colLevel = request.colLevel ? getLevel(request.colLevel.dimension, request.colLevel.level) : null
+  const effectiveLevel = (dimension: string, level: string): DimensionLevel | undefined => {
+    const dim = getDimension(dimension)
+    if (!dim) return undefined
+    const index = dim.levels.findIndex((candidate) => candidate.key === level)
+    if (request.operation === 'rollup' && index > 0) return dim.levels[index - 1]
+    if (request.operation === 'drilldown' && index >= 0 && index < dim.levels.length - 1) return dim.levels[index + 1]
+    return dim.levels[index]
+  }
+  const colLevel = request.colLevel ? effectiveLevel(request.colLevel.dimension, request.colLevel.level) ?? null : null
   const colMembers = colLevel
     ? [...new Set(base.map((o) => colLevel.access(o)))].sort(naturalSort)
     : ['']
 
   const rowLevels = request.rowLevels
-    .map((rl) => ({ ...rl, level: getLevel(rl.dimension, rl.level) }))
+    .map((rl) => ({ ...rl, level: effectiveLevel(rl.dimension, rl.level) }))
     .filter((rl): rl is typeof rl & { level: DimensionLevel } => Boolean(rl.level))
 
   const expanded = new Set(request.expanded)
@@ -455,11 +505,11 @@ export function runOlap(request: OlapRequest): OlapResult {
         const cellOrders = colLevel
           ? childOrders.filter((o) => matchesLevel(o, colLevel, cm))
           : childOrders
-        const v = measure.compute(cellOrders)
+        const v = aggregateMeasure(measure, cellOrders, request.aggregation)
         node.values.push(v)
         node.compare.push(compareMeasure ? compareMeasure.compute(cellOrders) : 0)
-        node.total += v
       }
+      node.total = aggregateMeasure(measure, childOrders, request.aggregation)
 
       const isDeepest = depth === rowLevels.length - 1
       const showRollup = request.operation === 'rollup' && depth > 0
@@ -475,8 +525,11 @@ export function runOlap(request: OlapRequest): OlapResult {
   }
 
   const rows = build(base, 0, '')
-  const grandTotal = colMembers.map((_, i) => sum(rows.map((r) => r.values[i] ?? 0)))
-  const grandTotalValue = sum(grandTotal)
+  const grandTotal = colMembers.map((cm) => {
+    const cellOrders = colLevel ? base.filter((o) => matchesLevel(o, colLevel, cm)) : base
+    return aggregateMeasure(measure, cellOrders, request.aggregation)
+  })
+  const grandTotalValue = aggregateMeasure(measure, base, request.aggregation)
 
   return {
     rowPath: rowLevels.map((rl) => ({
@@ -493,6 +546,8 @@ export function runOlap(request: OlapRequest): OlapResult {
     grandTotalValue,
     scannedOrders: base.length,
     cellCount: rows.length * colMembers.length,
+    filtersApplied: activeSlices.reduce((count, slice) => count + slice.values.length, 0),
+    aggregation: request.aggregation ?? 'default',
   }
 }
 

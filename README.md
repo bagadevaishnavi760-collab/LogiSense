@@ -73,3 +73,27 @@ Analytics      Predictions
             │
             ▼
       React Dashboard
+```
+
+## Model evaluation
+
+The production classification and regression artifacts are reproducibly trained
+with [`ml/train_models.py`](./ml/train_models.py). The trainer uses one
+stratified 80/20 holdout split, three-fold cross-validation on the training
+partition, and preprocessing fitted inside each pipeline. Delivery outcomes
+and post-delivery tracking fields are excluded from model inputs. Candidate
+metrics, hyperparameters, dataset sizes, thresholds, confusion matrix, model
+selection rationale, and the training timestamp are stored in
+[`models/model_metadata.json`](./models/model_metadata.json) and served by
+`GET /api/ml/metadata`.
+
+The Model Monitoring page compares all evaluated candidates. Its metrics are
+estimates on the held-out test set and may vary on future deliveries.
+
+The current audit found 50,000 unique rows and order IDs, no missing model
+features or targets, and 41,375 missing values only in the excluded
+`return_reason` field. The late-delivery target contains 28,162 late and
+21,838 on-time deliveries (56.324% positive), so class weighting was tested
+only inside training folds. Pre-delivery engineered ratios and logarithmic
+features were also tested, but were not adopted because they reduced F1,
+ROC-AUC, or regression error trade-offs on the controlled holdout.

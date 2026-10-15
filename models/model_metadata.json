@@ -1,5 +1,44 @@
 {
+  "metadata_version": "2.0",
+  "training_timestamp": "2026-10-15T15:09:32+00:00",
   "random_state": 42,
+  "evaluation_split": {
+    "test_size": 0.2,
+    "stratified": true,
+    "cv_folds": 3
+  },
+  "dataset": {
+    "source": "data\\raw\\E-commerce_Delivery_Shipping_Data_2026.csv",
+    "rows": 50000,
+    "training_rows": 40000,
+    "test_rows": 10000,
+    "classification_positive_rate": 0.56324,
+    "audit": {
+      "duplicate_rows": 0,
+      "duplicate_order_ids": 0,
+      "missing_cells": 41375,
+      "missing_feature_cells_after_cleaning": 0,
+      "missing_target_rows_removed": 0,
+      "class_distribution": {
+        "late": 28162,
+        "on_time": 21838
+      },
+      "split_class_distribution": {
+        "training": {
+          "rows": 40000,
+          "late": 22530,
+          "on_time": 17470,
+          "late_rate": 0.56325
+        },
+        "test": {
+          "rows": 10000,
+          "late": 5632,
+          "on_time": 4368,
+          "late_rate": 0.5632
+        }
+      }
+    }
+  },
   "classification_target": "late_delivery_target",
   "classification_source_column": "late_delivery",
   "regression_target": "actual_delivery_days_target",
@@ -26,6 +65,30 @@
     "order_dayofweek",
     "order_is_weekend"
   ],
+  "categorical_features": [
+    "customer_segment",
+    "customer_city",
+    "customer_country",
+    "warehouse_id",
+    "warehouse_city",
+    "product_category",
+    "shipping_method",
+    "carrier",
+    "package_size",
+    "payment_method"
+  ],
+  "numeric_features": [
+    "product_weight_kg",
+    "order_value_usd",
+    "distance_km",
+    "promised_delivery_days",
+    "shipping_cost_usd",
+    "order_year",
+    "order_month",
+    "order_day",
+    "order_dayofweek",
+    "order_is_weekend"
+  ],
   "leakage_columns": [
     "actual_delivery_days",
     "actual_delivery_days_target",
@@ -36,28 +99,420 @@
     "late_delivery_target",
     "tracking_status"
   ],
-  "classification_model": "Tuned Random Forest",
+  "preprocessing": {
+    "numeric": "SimpleImputer(median) -> StandardScaler",
+    "categorical": "SimpleImputer(most_frequent) -> OneHotEncoder(handle_unknown=ignore, dense output)",
+    "fit_scope": "training folds only"
+  },
+  "feature_selection": {
+    "method": "None",
+    "reason": "The candidate pipelines use the complete leakage-screened feature set; selection is performed at the model and threshold level."
+  },
+  "classification_model": "HistGradientBoosting",
   "classification_metrics": {
-    "Accuracy": 0.6586,
-    "Precision": 0.7062872023809523,
-    "Recall": 0.6741832386363636,
-    "F1": 0.6898619186046512,
-    "ROC_AUC": 0.719202712977127
+    "accuracy": 0.6502,
+    "precision": 0.631859,
+    "recall": 0.907848,
+    "f1": 0.745118,
+    "roc_auc": 0.727093,
+    "pr_auc": 0.761357,
+    "confusion_matrix": [
+      [
+        1389,
+        2979
+      ],
+      [
+        519,
+        5113
+      ]
+    ],
+    "decision_threshold": 0.38,
+    "model_name": "HistGradientBoosting",
+    "task": "classification",
+    "cv_f1": 0.746389,
+    "hyperparameters": {
+      "categorical_features": "from_dtype",
+      "class_weight": null,
+      "early_stopping": "auto",
+      "interaction_cst": null,
+      "l2_regularization": 0.1,
+      "learning_rate": 0.08,
+      "loss": "log_loss",
+      "max_bins": 255,
+      "max_depth": null,
+      "max_features": 1.0,
+      "max_iter": 120,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 20,
+      "monotonic_cst": null,
+      "n_iter_no_change": 10,
+      "random_state": 42,
+      "scoring": "loss",
+      "tol": 1e-07,
+      "validation_fraction": 0.1,
+      "verbose": 0,
+      "warm_start": false
+    }
   },
-  "classification_threshold": 0.35,
-  "random_search_best_cv_f1": 0.6935669763388242,
-  "random_search_best_params": {
-    "model__n_estimators": 100,
-    "model__min_samples_split": 2,
-    "model__min_samples_leaf": 2,
-    "model__max_features": "sqrt",
-    "model__max_depth": null
-  },
-  "regression_model": "HistGradient Boosting",
+  "classification_threshold": 0.38,
+  "classification_selection": "Selected by training cross-validation F1, with held-out ROC-AUC reported as a secondary diagnostic; threshold selected from training cross-validation predictions.",
+  "regression_model": "HistGradientBoosting Regressor",
   "regression_holdout_metrics": {
-    "Model": "HistGradient Boosting",
-    "MAE": 1.1714367343940282,
-    "RMSE": 1.6310387059142812,
-    "R2": 0.8760027950170046
-  }
+    "mae": 1.171873,
+    "rmse": 1.615569,
+    "r2": 0.877274,
+    "model_name": "HistGradientBoosting Regressor",
+    "task": "regression",
+    "cv_mae": 1.189919,
+    "hyperparameters": {
+      "categorical_features": "from_dtype",
+      "early_stopping": "auto",
+      "interaction_cst": null,
+      "l2_regularization": 0.0,
+      "learning_rate": 0.08,
+      "loss": "squared_error",
+      "max_bins": 255,
+      "max_depth": null,
+      "max_features": 1.0,
+      "max_iter": 150,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 20,
+      "monotonic_cst": null,
+      "n_iter_no_change": 10,
+      "quantile": null,
+      "random_state": 42,
+      "scoring": "loss",
+      "tol": 1e-07,
+      "validation_fraction": 0.1,
+      "verbose": 0,
+      "warm_start": false
+    }
+  },
+  "regression_selection": "Selected by training cross-validation MAE, with held-out R-squared reported as a secondary diagnostic.",
+  "selection_methodology": "Candidate selection uses training cross-validation only. The held-out test set is used once for final reporting and is not used to select models or thresholds.",
+  "improvement_experiments": [
+    {
+      "name": "Pre-delivery engineered numeric features",
+      "features": [
+        "log_distance_km",
+        "log_shipping_cost_usd",
+        "distance_per_promised_day",
+        "shipping_cost_per_km",
+        "weight_per_value",
+        "distance_weight_interaction"
+      ],
+      "classification_metrics": {
+        "accuracy": 0.6531,
+        "precision": 0.636501,
+        "recall": 0.895419,
+        "f1": 0.74408,
+        "roc_auc": 0.722909,
+        "pr_auc": 0.757117
+      },
+      "regression_metrics": {
+        "mae": 1.176133,
+        "rmse": 1.625155,
+        "r2": 0.875813
+      },
+      "decision": "Not adopted: accuracy improved, but F1 and ROC-AUC declined; all regression metrics declined."
+    },
+    {
+      "name": "Training-only class weighting",
+      "settings": {
+        "classifier_class_weight": "balanced"
+      },
+      "classification_metrics": {
+        "accuracy": 0.6482,
+        "precision": 0.630044,
+        "recall": 0.909268,
+        "f1": 0.744331,
+        "roc_auc": 0.726431,
+        "pr_auc": 0.760696
+      },
+      "decision": "Not adopted: recall increased slightly, but accuracy, precision, F1, ROC-AUC, and PR-AUC declined."
+    }
+  ],
+  "historical_reference": {
+    "classification": {
+      "accuracy": 0.6586,
+      "f1": 0.689862,
+      "roc_auc": 0.719203,
+      "threshold": 0.35
+    },
+    "regression": {
+      "mae": 1.171437,
+      "rmse": 1.631039,
+      "r2": 0.876003
+    },
+    "note": "Values from the previously committed metadata; current candidates were re-evaluated on the controlled split below and should be compared using the current comparison rows."
+  },
+  "classification_comparison": [
+    {
+      "accuracy": 0.6358,
+      "precision": 0.615617,
+      "recall": 0.940696,
+      "f1": 0.744206,
+      "roc_auc": 0.707614,
+      "pr_auc": 0.740794,
+      "confusion_matrix": [
+        [
+          1060,
+          3308
+        ],
+        [
+          334,
+          5298
+        ]
+      ],
+      "decision_threshold": 0.355,
+      "model_name": "Logistic Regression",
+      "task": "classification",
+      "cv_f1": 0.741461,
+      "hyperparameters": {
+        "C": 1.0,
+        "class_weight": null,
+        "dual": false,
+        "fit_intercept": true,
+        "intercept_scaling": 1,
+        "l1_ratio": 0.0,
+        "max_iter": 1000,
+        "n_jobs": null,
+        "penalty": "deprecated",
+        "random_state": 42,
+        "solver": "lbfgs",
+        "tol": 0.0001,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    {
+      "accuracy": 0.6385,
+      "precision": 0.622228,
+      "recall": 0.911577,
+      "f1": 0.73961,
+      "roc_auc": 0.699255,
+      "pr_auc": 0.719764,
+      "confusion_matrix": [
+        [
+          1251,
+          3117
+        ],
+        [
+          498,
+          5134
+        ]
+      ],
+      "decision_threshold": 0.33,
+      "model_name": "Decision Tree",
+      "task": "classification",
+      "cv_f1": 0.735823,
+      "hyperparameters": {
+        "ccp_alpha": 0.0,
+        "class_weight": null,
+        "criterion": "gini",
+        "max_depth": 10,
+        "max_features": null,
+        "max_leaf_nodes": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 4,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "random_state": 42,
+        "splitter": "best"
+      }
+    },
+    {
+      "accuracy": 0.6497,
+      "precision": 0.632285,
+      "recall": 0.903409,
+      "f1": 0.743914,
+      "roc_auc": 0.719133,
+      "pr_auc": 0.752506,
+      "confusion_matrix": [
+        [
+          1409,
+          2959
+        ],
+        [
+          544,
+          5088
+        ]
+      ],
+      "decision_threshold": 0.39,
+      "model_name": "Random Forest",
+      "task": "classification",
+      "cv_f1": 0.744293,
+      "hyperparameters": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "class_weight": null,
+        "criterion": "gini",
+        "max_depth": null,
+        "max_features": "sqrt",
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 2,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 100,
+        "n_jobs": -1,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    {
+      "accuracy": 0.6502,
+      "precision": 0.631859,
+      "recall": 0.907848,
+      "f1": 0.745118,
+      "roc_auc": 0.727093,
+      "pr_auc": 0.761357,
+      "confusion_matrix": [
+        [
+          1389,
+          2979
+        ],
+        [
+          519,
+          5113
+        ]
+      ],
+      "decision_threshold": 0.38,
+      "model_name": "HistGradientBoosting",
+      "task": "classification",
+      "cv_f1": 0.746389,
+      "hyperparameters": {
+        "categorical_features": "from_dtype",
+        "class_weight": null,
+        "early_stopping": "auto",
+        "interaction_cst": null,
+        "l2_regularization": 0.1,
+        "learning_rate": 0.08,
+        "loss": "log_loss",
+        "max_bins": 255,
+        "max_depth": null,
+        "max_features": 1.0,
+        "max_iter": 120,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 20,
+        "monotonic_cst": null,
+        "n_iter_no_change": 10,
+        "random_state": 42,
+        "scoring": "loss",
+        "tol": 1e-07,
+        "validation_fraction": 0.1,
+        "verbose": 0,
+        "warm_start": false
+      }
+    }
+  ],
+  "regression_comparison": [
+    {
+      "mae": 1.175126,
+      "rmse": 1.624298,
+      "r2": 0.875944,
+      "model_name": "Linear Regression",
+      "task": "regression",
+      "cv_mae": 1.196084,
+      "hyperparameters": {
+        "copy_X": true,
+        "fit_intercept": true,
+        "n_jobs": null,
+        "positive": false,
+        "tol": 1e-06
+      }
+    },
+    {
+      "mae": 1.236122,
+      "rmse": 1.726747,
+      "r2": 0.859802,
+      "model_name": "Decision Tree Regressor",
+      "task": "regression",
+      "cv_mae": 1.274094,
+      "hyperparameters": {
+        "ccp_alpha": 0.0,
+        "criterion": "squared_error",
+        "max_depth": 12,
+        "max_features": null,
+        "max_leaf_nodes": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 4,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "random_state": 42,
+        "splitter": "best"
+      }
+    },
+    {
+      "mae": 1.187341,
+      "rmse": 1.649863,
+      "r2": 0.872008,
+      "model_name": "Random Forest Regressor",
+      "task": "regression",
+      "cv_mae": 1.205029,
+      "hyperparameters": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "criterion": "squared_error",
+        "max_depth": null,
+        "max_features": 1.0,
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 2,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 100,
+        "n_jobs": -1,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+      }
+    },
+    {
+      "mae": 1.171873,
+      "rmse": 1.615569,
+      "r2": 0.877274,
+      "model_name": "HistGradientBoosting Regressor",
+      "task": "regression",
+      "cv_mae": 1.189919,
+      "hyperparameters": {
+        "categorical_features": "from_dtype",
+        "early_stopping": "auto",
+        "interaction_cst": null,
+        "l2_regularization": 0.0,
+        "learning_rate": 0.08,
+        "loss": "squared_error",
+        "max_bins": 255,
+        "max_depth": null,
+        "max_features": 1.0,
+        "max_iter": 150,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 20,
+        "monotonic_cst": null,
+        "n_iter_no_change": 10,
+        "quantile": null,
+        "random_state": 42,
+        "scoring": "loss",
+        "tol": 1e-07,
+        "validation_fraction": 0.1,
+        "verbose": 0,
+        "warm_start": false
+      }
+    }
+  ],
+  "artifacts": {
+    "classification": "late_delivery_risk_model.joblib",
+    "regression": "delivery_time_model.joblib",
+    "backup_directory": "models\\backups\\2026-10-15T150932_0000"
+  },
+  "operational_note": "Metrics are estimates on this held-out test set; performance may vary on future deliveries."
 }

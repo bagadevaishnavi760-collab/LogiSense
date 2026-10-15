@@ -144,7 +144,7 @@ def predict_duration(payload: dict[str, Any]) -> dict[str, Any]:
     frame, row = _validated_frame(payload)
     model = _load_model("regression")
     regression_metrics = _metadata().get("regression_holdout_metrics", {})
-    mae = float(regression_metrics["MAE"])
+    mae = float(regression_metrics.get("mae", regression_metrics.get("MAE", 0)))
     predicted_days = max(0.0, float(model.predict(frame)[0]))
     return {
         "predicted_days": round(predicted_days, 2),
